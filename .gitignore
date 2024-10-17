@@ -1,3 +1,8 @@
 dataset
-dogcatclassifier.h5
-test
+.venv
+pyproject.toml
+pyrightconfig.json
+images
+saves
+configurations
+jupyterfiles

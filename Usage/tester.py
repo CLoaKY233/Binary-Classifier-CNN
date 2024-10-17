@@ -11,14 +11,14 @@ def test_image(model_path, image_path):
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise ValueError("Image not found or unable to open.")
-    
+
     img = cv2.resize(img, (256, 256))
     img = img.astype('float32') / 255.0
     img = np.reshape(img, (1, 256, 256, 1))
 
     # Make prediction
     prediction = model.predict(img)
-    
+
     # Interpret prediction
     class_index = 1 if prediction[0][0] > 0.5 else 0
     class_name = "Cat" if class_index == 1 else "Dog"
@@ -35,5 +35,5 @@ def test_image(model_path, image_path):
 
 # Usage
 model_path = "dogcatclassifier.h5"  # Path to your saved model
-image_path = ""  # Path to the image you want to test
+image_path = "kutta1.jpg"  # Path to the image you want to test
 test_image(model_path, image_path)

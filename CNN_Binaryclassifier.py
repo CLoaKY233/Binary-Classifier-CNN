@@ -1,123 +1,74 @@
-# %%
-import tensorflow
-from tensorflow import keras
-from keras.models import Sequential #type: ignore
-from keras.layers import Dense, Conv2D,MaxPooling2D,Dropout #type: ignore
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import copy
 import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow import keras #type:ignore
+from tensorflow.keras.models import Sequential, load_model #type:ignore
+from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten #type:ignore
+from tensorflow.keras.optimizers import Adam #type:ignore
 
-# %%
+# Constants
+IMG_SIZE = 256
+CLASSES = {0: "Dog", 1: "Cat"}
+
 def load_data(path):
+    """
+    Load and preprocess image data from the given path.
 
-     cats_path = path+"/cats"
-     dogs_path = path+"/dogs"
+    Args:
+        path (str): Path to the dataset directory.
 
-     x_dataset = []
-     y_dataset = []
+    Returns:
+        tuple: Preprocessed images and labels as numpy arrays.
+    """
+    x_dataset = []
+    y_dataset = []
 
+    # Load cat images
+    cats_path = os.path.join(path, "cats")
+    for img in os.listdir(cats_path):
+        process_image(os.path.join(cats_path, img), x_dataset, y_dataset, 1)
 
-     for img in os.listdir(cats_path):
-            img_path = cats_path+"/"+img
+    # Load dog images
+    dogs_path = os.path.join(path, "dogs")
+    for img in os.listdir(dogs_path):
+        process_image(os.path.join(dogs_path, img), x_dataset, y_dataset, 0)
 
-            try:
-                img_arr = cv2.imread(img_path,cv2.IMREAD_GRAYSCALE)
-                img_arr = cv2.resize(img_arr,(256,256))
+    # Convert to numpy arrays and shuffle
+    x = np.array(x_dataset)
+    y = np.array(y_dataset)
+    indices = np.arange(len(x))
+    np.random.shuffle(indices)
 
-                x_dataset.append(img_arr)
-                y_dataset.append(1)
+    return x[indices], y[indices]
 
-            except Exception as e:
-                print(img_path+" was not Added.")
-                print(e)
+def process_image(img_path, x_dataset, y_dataset, label):
+    """
+    Process a single image and add it to the dataset.
 
+    Args:
+        img_path (str): Path to the image file.
+        x_dataset (list): List to store processed images.
+        y_dataset (list): List to store labels.
+        label (int): Label for the image (0 for dog, 1 for cat).
+    """
+    try:
+        img_arr = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        img_arr = cv2.resize(img_arr, (IMG_SIZE, IMG_SIZE))
+        x_dataset.append(img_arr)
+        y_dataset.append(label)
+    except Exception as e:
+        print(f"{img_path} was not added. Error: {e}")
 
-     for img in os.listdir(dogs_path):
-            img_path = dogs_path+"/"+img
+def create_model():
+    """
+    Create and compile the CNN model.
 
-            try:
-                img_arr = cv2.imread(img_path,cv2.IMREAD_GRAYSCALE)
-                img_arr = cv2.resize(img_arr,(256,256))
-
-                x_dataset.append(img_arr)
-                y_dataset.append(0)
-
-            except Exception as e:
-                print(img_path+" was not Added.")
-                print(e)
-
-
-     x = np.array(x_dataset)
-     y = np.array(y_dataset)
-
-     # Shuffling the data
-
-     indices = np.arange(len(x))
-     np.random.shuffle(indices)
-
-     x_shuffled = x[indices]
-     y_shuffled = y[indices]
-
-     return x_shuffled, y_shuffled
-
-# %%
-train_path = "/content/drive/MyDrive/Colab Notebooks/dataset/training_set/training_set"
-test_path = "/content/drive/MyDrive/Colab Notebooks/dataset/test_set/test_set"
-
-
-x_train,y_train = load_data(train_path)
-x_test, y_test = load_data(test_path)
-
-y_train = y_train.reshape(-1, 1)
-y_test = y_test.reshape(-1, 1)
-
-# %%
-classes = {0: "Dog", 1: "Cat"}
-
-index = 1
-
-plt.imshow(x_test[index].reshape(256, 256), cmap='gray')
-plt.show()
-
-# Access the first (and only) element of the array
-class_index = y_test[index][0]
-print(f"y = {class_index}, It is a {classes[class_index]}")
-
-# %%
-x_train = x_train.reshape(x_train.shape[0], 256,256, 1)
-x_test = x_test.reshape(x_test.shape[0], 256,256, 1)
-
-# %%
-x_train[1].shape
-
-# %%
-x_train = x_train.astype('float32') / 255.0
-x_test = x_test.astype('float32') / 255.0
-
-# %%
-x_train[1].shape
-
-# %%
-x_train.shape[0]
-
-# %%
-x_train = x_train.reshape(x_train.shape[0], 256,256, 1)
-x_test = x_test.reshape(x_test.shape[0], 256,256, 1)
-
-# %%
-import keras
-from keras.models import Sequential  #type:ignore
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense  #type:ignore
-from keras.optimizers import Adam #type:ignore
-
-
-# %%
-def cnnmodel():
+    Returns:
+        keras.models.Sequential: Compiled Keras model.
+    """
     model = Sequential([
-        Conv2D(64, (3,3), activation='relu', input_shape=(256,256,1), padding='same'),
+        Conv2D(64, (3,3), activation='relu', input_shape=(IMG_SIZE, IMG_SIZE, 1), padding='same'),
         MaxPooling2D(pool_size=(2,2)),
         Conv2D(128, (3,3), activation='relu', padding='same'),
         MaxPooling2D(pool_size=(2,2)),
@@ -125,7 +76,7 @@ def cnnmodel():
         MaxPooling2D(pool_size=(2,2)),
         Flatten(),
         Dense(128, activation='relu'),
-        Dropout(0.5),#type:ignore
+        Dropout(0.5),
         Dense(64, activation='relu'),
         Dense(1, activation='sigmoid')
     ])
@@ -136,132 +87,103 @@ def cnnmodel():
 
     return model
 
-# %%
-model = cnnmodel()
-history = model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=5, batch_size=32)
+def plot_training_history(history):
+    """
+    Plot the training and validation accuracy/loss.
 
-# Evaluate the model
-test_loss, test_accuracy = model.evaluate(x_test, y_test, verbose=2)
-print(f"Test accuracy: {test_accuracy}")
+    Args:
+        history (keras.callbacks.History): Training history object.
+    """
+    plt.figure(figsize=(12, 4))
 
-predictions = model.predict(x_test)
+    # Plot accuracy
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
 
+    # Plot loss
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-# %%
-plt.figure(figsize=(12, 4))
-plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Training Accuracy')
-plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-plt.title('Model Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
-
-plt.subplot(1, 2, 2)
-plt.plot(history.history['loss'], label='Training Loss')
-plt.plot(history.history['val_loss'], label='Validation Loss')
-plt.title('Model Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-
-plt.tight_layout()
-plt.show()
-
-# Visualize a sample image (optional)
-
-
-# %%
-classes = {0: "Dog", 1: "Cat"}
-index = 9
-plt.figure()
-plt.imshow(x_test[index].reshape(256, 256), cmap='gray')
-plt.title(f"Prediction: {classes[round(predictions[index][0])]} (Actual: {classes[y_test[index][0]]})")
-plt.show()
-
-# %%
-model.save("dogcatclassifier.h5")
-
-# %%
-import numpy as np
-import matplotlib.pyplot as plt
-from keras.models import load_model # type: ignore
-import cv2
-
+    plt.tight_layout()
+    plt.show()
 
 def preprocess_image(image_path):
     """
-    Preprocess the input image to match the format expected by the model.
+    Preprocess a single image for prediction.
+
     Args:
         image_path (str): Path to the image file.
+
     Returns:
         np.array: Preprocessed image ready for prediction.
     """
-    # Load the image in grayscale
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-
     if image is None:
         raise ValueError("Image not found or unable to open.")
-
-
-    image = cv2.resize(image, (256,256))
-
-    # Normalize pixel values to be between 0 and 1
+    image = cv2.resize(image, (IMG_SIZE, IMG_SIZE))
     image = image.astype('float32') / 255.0
+    return np.reshape(image, (1, IMG_SIZE, IMG_SIZE, 1))
 
-
-    image = np.reshape(image, (1, 256,256, 1))
-
-    return image
-
-
-def display_image(image_path,predicted_digit,prediction):
+def display_prediction(image_path, predicted_class, prediction):
     """
-    Display the original image.
+    Display the original image with prediction results.
+
     Args:
         image_path (str): Path to the image file.
+        predicted_class (str): Predicted class (Dog or Cat).
+        prediction (float): Prediction probability.
     """
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-
     if image is None:
         raise ValueError("Image not found or unable to open.")
-
     plt.imshow(image, cmap='gray')
-    plt.title(f"predicted - {predicted_digit}\n prediction stats-{prediction}")
-
+    plt.title(f"Predicted: {predicted_class}\nProbability: {prediction[0][0]:.4f}")
+    plt.axis('off')
     plt.show()
 
+def main():
+    # Load and preprocess data
+    train_path = "dataset/training_set/training_set"
+    test_path = "dataset/test_set/test_set"
 
-def main(image_path):
-    # Load the saved model
-    model = load_model('/content/dogcatclassifier.h5')
+    x_train, y_train = load_data(train_path)
+    x_test, y_test = load_data(test_path)
 
-    # Preprocess the image
-    image = preprocess_image(image_path)
+    # Reshape and normalize data
+    x_train = x_train.reshape(-1, IMG_SIZE, IMG_SIZE, 1).astype('float32') / 255.0
+    x_test = x_test.reshape(-1, IMG_SIZE, IMG_SIZE, 1).astype('float32') / 255.0
+    y_train = y_train.reshape(-1, 1)
+    y_test = y_test.reshape(-1, 1)
 
-    # Make a prediction
-    prediction = model.predict(image)
+    # Create and train model
+    model = create_model()
+    history = model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=5, batch_size=32)
 
-    # Get the predicted digit
-    predicted_digit = np.argmax(prediction)
+    # Evaluate model
+    test_loss, test_accuracy = model.evaluate(x_test, y_test, verbose=2)
+    print(f"Test accuracy: {test_accuracy}")
 
-    if predicted_digit==0:
-        predicted_digit='Dog'
-    elif predicted_digit==1:
-        predicted_digit='Cat'
-    else:
-        predicted_digit='Neither'
-    # Display the original image
-    display_image(image_path,predicted_digit,prediction)
+    # Plot training history
+    plot_training_history(history)
 
-    # Print the predicted digit
-    print("Predicted :", predicted_digit)
+    # Save model
+    model.save("dogcatclassifier.h5")
 
-def run():
-        image_path = "/content/drive/MyDrive/Colab Notebooks/images.jpeg"
-        main(image_path)
+    # Make a prediction on a sample image
+    sample_image_path = "/content/drive/MyDrive/Colab Notebooks/images.jpeg"
+    prediction = model.predict(preprocess_image(sample_image_path))
+    predicted_class = CLASSES[round(prediction[0][0])]
+    display_prediction(sample_image_path, predicted_class, prediction)
 
-
-run()
-
-
+if __name__ == "__main__":
+    main()
