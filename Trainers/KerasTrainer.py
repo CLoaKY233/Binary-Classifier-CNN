@@ -180,7 +180,7 @@ def main():
     model.save("dogcatclassifier.h5")
 
     # Make a prediction on a sample image
-    sample_image_path = "/content/drive/MyDrive/Colab Notebooks/images.jpeg"
+    sample_image_path = "images/dog1.jpg"
     prediction = model.predict(preprocess_image(sample_image_path))
     predicted_class = CLASSES[round(prediction[0][0])]
     display_prediction(sample_image_path, predicted_class, prediction)

@@ -6,11 +6,11 @@ from torchvision import transforms
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from models.models import Model1
+from torchtrainer import CatDogClassifier
 
 def test_image(model_path, image_path):
     # Load the saved model
-    model = Model1()
+    model = CatDogClassifier()
     state_dic = torch.load(model_path)
     model.load_state_dict(state_dic)
     model.eval()  # Set the model to evaluation mode
@@ -37,12 +37,9 @@ def test_image(model_path, image_path):
     with torch.no_grad():
         prediction = model(img_tensor)
 
-    # Interpret prediction
-    probability = torch.sigmoid(prediction).item()
-    class_index = 1 if probability > 0.5 else 0
+    class_index = 1 if prediction[0][0] > 0.5 else 0
     class_name = "Cat" if class_index == 1 else "Dog"
-    confidence = probability if class_index == 1 else 1 - probability
-
+    confidence = prediction[0][0] if class_index == 1 else 1 - prediction[0][0]
     # Display the image and prediction
     plt.imshow(cv2.imread(image_path, cv2.IMREAD_GRAYSCALE), cmap='gray')
     plt.title(f"Prediction: {class_name} (Confidence: {confidence:.2f})")
@@ -52,7 +49,15 @@ def test_image(model_path, image_path):
     print(f"Predicted class: {class_name}")
     print(f"Confidence: {confidence:.2f}")
 
+
+imlist=["cat1","cat2","cat3","cat4","cat5","cat6","cat7","dog1","dog2","dog3","dog4","dog5","dog6","dog7"]
+model_path = "dogcatclassifier.pth"
 # Usage
-model_path = "saves/cat_dog_classifier.pth"  # Path to your saved PyTorch model
-image_path = "images/cat4.webp"  # Path to the image you want to test
-test_image(model_path, image_path)
+for i in imlist:
+    try:
+        # Path to your saved PyTorch model
+        image_path = f"images/{i}.jpg"  # Path to the image you want to test
+        test_image(model_path, image_path)
+    except Exception as e:
+        print(e)
+        continue
