@@ -6,7 +6,7 @@ from torchvision import transforms
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from torchtrainer import CatDogClassifier
+from Trainers.TorchTrainer import CatDogClassifier
 
 def test_image(model_path, image_path):
     # Load the saved model
@@ -51,7 +51,7 @@ def test_image(model_path, image_path):
 
 
 imlist=["cat1","cat2","cat3","cat4","cat5","cat6","cat7","dog1","dog2","dog3","dog4","dog5","dog6","dog7"]
-model_path = "dogcatclassifier.pth"
+model_path = "saves/dogcatclassifier.pth"
 # Usage
 for i in imlist:
     try:

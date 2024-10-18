@@ -4,5 +4,6 @@ pyproject.toml
 pyrightconfig.json
 images
 saves
-configurations
 jupyterfiles
+mlruns
+Api

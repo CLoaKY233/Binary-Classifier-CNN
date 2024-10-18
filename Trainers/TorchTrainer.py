@@ -1,12 +1,20 @@
 import os
 import cv2
-import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+import mlflow
+import time
+
+
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_experiment("/binaryclassifier V1")
+mlflow.enable_system_metrics_logging()
+
+
 
 # Constants
 IMG_SIZE = 256
@@ -107,6 +115,14 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         val_losses.append(val_loss)
         val_accuracies.append(val_acc)
 
+
+        mlflow.log_metric("train_loss", train_loss, step=epoch)
+        mlflow.log_metric("train_acc", train_acc, step=epoch)
+        mlflow.log_metric("val_loss", val_loss, step=epoch)
+        mlflow.log_metric("val_acc", val_acc, step=epoch)
+
+
+
         print(f"Epoch {epoch+1}/{num_epochs}")
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
         print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
@@ -146,7 +162,7 @@ def preprocess_image(image_path):
     if image is None:
         raise ValueError("Image not found or unable to open.")
     image = transform(image)
-    return image.unsqueeze(0)
+    return image.unsqueeze(0) #type: ignore
 
 def display_prediction(image_path, predicted_class, prediction):
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -158,34 +174,41 @@ def display_prediction(image_path, predicted_class, prediction):
     plt.show()
 
 def main():
-    train_path = "dataset/training_set/training_set"
-    test_path = "dataset/test_set/test_set"
+    with mlflow.start_run():
+        BatchSize=32
+        Epochs = 5
+        LearningRate = 0.0001
+        train_path = "dataset/training_set/training_set"
+        test_path = "dataset/test_set/test_set"
 
-    train_dataset = CatDogDataset(train_path)
-    test_dataset = CatDogDataset(test_path)
+        train_dataset = CatDogDataset(train_path)
+        test_dataset = CatDogDataset(test_path)
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
-    model = CatDogClassifier().to(DEVICE)
-    criterion = nn.BCELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+        model = CatDogClassifier().to(DEVICE)
+        criterion = nn.BCELoss()
+        optimizer = optim.Adam(model.parameters(), lr=LearningRate) #type: ignore
+        # Log parameters to MLflow
+        mlflow.log_param("batch_size", BatchSize)
+        mlflow.log_param("epochs", Epochs)
+        mlflow.log_param("learning_rate", LearningRate)
+        train_losses, train_accuracies, val_losses, val_accuracies = train_model(
+            model, train_loader, test_loader, criterion, optimizer, num_epochs=Epochs
+        )
 
-    train_losses, train_accuracies, val_losses, val_accuracies = train_model(
-        model, train_loader, test_loader, criterion, optimizer, num_epochs=5
-    )
+        # plot_training_history(train_losses, train_accuracies, val_losses, val_accuracies)
 
-    # plot_training_history(train_losses, train_accuracies, val_losses, val_accuracies)
+        torch.save(model.state_dict(), "saves/dogcatclassifier.pth")
 
-    torch.save(model.state_dict(), "saves/dogcatclassifier.pth")
-
-    sample_image_path = "/content/drive/MyDrive/Colab Notebooks/images.jpeg"
-    input_tensor = preprocess_image(sample_image_path).to(DEVICE)
-    model.eval()
-    with torch.no_grad():
-        prediction = model(input_tensor)
-    predicted_class = CLASSES[round(prediction.item())]
-    display_prediction(sample_image_path, predicted_class, prediction.cpu().numpy())
+        sample_image_path = "images/dog1.jpeg"
+        input_tensor = preprocess_image(sample_image_path).to(DEVICE)
+        model.eval()
+        with torch.no_grad():
+            prediction = model(input_tensor)
+        predicted_class = CLASSES[round(prediction.item())]
+        display_prediction(sample_image_path, predicted_class, prediction.cpu().numpy())
 
 if __name__ == "__main__":
     main()
